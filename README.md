@@ -45,6 +45,29 @@ As well as `MissingTokenEndpointError` and `MissingDomainError` mentioned above,
 * `IndieAuth::TokenVerification::IncorrectMeError` - when the `me` value in the response does not match the `DOMAIN`
 * `IndieAuth::TokenVerification::InsufficentScopeError` - when the scope requested is not granted by the access token
 
+## A more detailed usage example
+
+The following is a more detailed example of how the gem could be used. This example comes from a project that is actually making use of the gem in production. Most of the code involves dealing with the various errors raised by the gem and ensuring that errors are sent back with the appropriate status and error codes. `send_error` (which isn't defined here) returns a JSON response with the appropriate data and halts execution.
+
+```ruby
+def verify_token(scope = nil)
+  access_token = request.env['HTTP_AUTHORIZATION'] || params['access_token'] || ''
+  IndieAuth::TokenVerification.new(access_token).verify(scope)
+rescue IndieAuth::TokenVerification::AccessTokenMissingError
+  send_error(status: 401, error: 'unauthorized', description: 'Access token missing or empty')
+rescue IndieAuth::TokenVerification::MissingDomainError
+  send_error(status: 400, error: 'invalid_request', description: 'DOMAIN is not specified')
+rescue IndieAuth::TokenVerification::MissingTokenEndpointError
+  send_error(status: 400, error: 'invalid_request', description: 'TOKEN_ENDPOINT is not specified')
+rescue IndieAuth::TokenVerification::ForbiddenUserError
+  send_error(status: 403, error: 'forbidden', description: 'User does not have permission')
+rescue IndieAuth::TokenVerification::IncorrectMeError
+  send_error(status: 401, error: 'insufficient_scope', description: 'The "me" value does not match the expected DOMAIN')
+rescue IndieAuth::TokenVerification::InsufficentScopeError
+  send_error(status: 401, error: 'insufficient_scope', description: 'The scope of this token does not meet the requirements for this request')
+end
+```
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
